@@ -8,7 +8,8 @@
 
 ## 사용 방법
 1. 검증하고자 하는 SW 파일들이 있는 폴더로 `SWvalidator.ps1` 파일을 복사합니다.
-2. PowerShell 콘솔에서 스크립트를 실행합니다. (또는 우클릭 후 "PowerShell에서 실행" 클릭)
+2. PowerShell 콘솔에서 스크립트를 실행합니다. 
+(또는 스크립트 우클릭 후 "PowerShell에서 실행" 선택)
    ```powershell
    .\SWvalidator.ps1
    ```
