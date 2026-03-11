@@ -113,6 +113,7 @@ Add-Content -Path $reportPath -Value $sealText -Encoding UTF8
 
 Write-Host "`n[완료] 검사가 성공적으로 끝났습니다." -ForegroundColor Green
 Write-Host "결과 파일이 같은 폴더에 생성되었습니다: $reportName"
-Write-Host "생성된 txt 파일의 내용을 엑셀 체크리스트에 복사하여 제출해 주세요.`n"
+Write-Host "생성된 txt 파일을 제출해 주세요.`n"
+
 
 Read-Host "엔터를 누르면 종료됩니다..."
