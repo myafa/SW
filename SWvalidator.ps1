@@ -1,4 +1,4 @@
-﻿# =====================================================================
+# =====================================================================
 # SW 반입 전 사전 검증 스크립트 (엑셀 체크리스트 작성 지원용)
 # 기능: 현재 폴더 및 하위 폴더의 모든 파일 해시(SHA-256)와 서명 추출
 # =====================================================================
@@ -50,6 +50,8 @@ $reportContent = @()
 $reportContent += "파일명`t해시값(SHA-256)`t전자서명(Status)`t서명자(Signer)"
 $reportContent += "-" * 100
 
+$advancedData = @()
+
 # 4. 파일별 정보 추출 및 진행률 표시
 $i = 1
 foreach ($file in $files) {
@@ -58,8 +60,24 @@ foreach ($file in $files) {
     # 해시 추출
     try {
         $hash = (Get-FileHash -Path $file.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
+        $md5 = (Get-FileHash -Path $file.FullName -Algorithm MD5 -ErrorAction SilentlyContinue).Hash
+        $sha1 = (Get-FileHash -Path $file.FullName -Algorithm SHA1 -ErrorAction SilentlyContinue).Hash
     } catch {
         $hash = "해시 추출 실패 (권한/사용중)"
+        $md5 = "N/A"
+        $sha1 = "N/A"
+    }
+
+    # PE 파일 정보 추출 (버전, 제조사, 제품명)
+    try {
+        $vi = (Get-Item -Path $file.FullName -ErrorAction SilentlyContinue).VersionInfo
+        $company = if ([string]::IsNullOrWhiteSpace($vi.CompanyName)) { "N/A" } else { $vi.CompanyName }
+        $product = if ([string]::IsNullOrWhiteSpace($vi.ProductName)) { "N/A" } else { $vi.ProductName }
+        $version = if ([string]::IsNullOrWhiteSpace($vi.FileVersion)) { "N/A" } else { $vi.FileVersion }
+    } catch {
+        $company = "N/A"
+        $product = "N/A"
+        $version = "N/A"
     }
 
         # 압축 파일의 경우 전자서명 추출 배제 (N/A 처리)
@@ -90,10 +108,20 @@ foreach ($file in $files) {
         } # This brace closes the 'else' block.
     # 결과 조합 (Tab 구분자)
     $reportContent += "$($file.Name)`t$hash`t$sigStatusMapped`t$signer"
+    
+    # 고급 정보 분류 (JSON 형태나 별도 구분자로 저장하면 메인 표에 노출되지 않음)
+    $advLine = "[ADV_INFO] Name: $($file.Name) | MD5: $md5 | SHA1: $sha1 | Company: $company | Product: $product | Version: $version"
+    $advancedData += $advLine
+
     $i++
 }
 
-# 5. 1차 리포트 파일 생성 (본문 저장)
+# 5. 고급 정보 취합 및 1차 리포트 파일 생성
+if ($advancedData.Count -gt 0) {
+    $reportContent += "`r`n[ADVANCED_DATA_SECTION] (분석기 전용 확장 데이터 - 수정 금지)"
+    $reportContent += $advancedData
+}
+
 $bodyText = $reportContent -join "`r`n"
 $bodyText | Out-File -FilePath $reportPath -Encoding UTF8
 
@@ -113,7 +141,6 @@ Add-Content -Path $reportPath -Value $sealText -Encoding UTF8
 
 Write-Host "`n[완료] 검사가 성공적으로 끝났습니다." -ForegroundColor Green
 Write-Host "결과 파일이 같은 폴더에 생성되었습니다: $reportName"
-Write-Host "생성된 txt 파일을 제출해 주세요.`n"
-
+Write-Host "생성된 txt 파일의 내용을 엑셀 체크리스트에 복사하여 제출해 주세요.`n"
 
 Read-Host "엔터를 누르면 종료됩니다..."
