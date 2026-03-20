@@ -1,5 +1,6 @@
 # SW 유해성 검증 도구
 본 스크립트는 소프트웨어(SW) 반입 전, 보안 체크리스트(엑셀) 작성을 돕기 위해 파일의 해시값과 전자서명 상태를 자동으로 추출하는 도구입니다.
+
 검증결과(txt)를 활용하여 아래 링크 양식의 엑셀을 작성하고 txt와 함께 제출해주세요.
 https://docs.google.com/spreadsheets/d/1liPC7i6VgYWtiANkSjFFBfXtGZZ04baN4-TfnkH2TNU
 
