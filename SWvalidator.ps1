@@ -23,7 +23,7 @@ Write-Host "==========================================`n"
 # 2. 폴더 감지 시 자동 압축(ZIP)
 $folders = Get-ChildItem -Path $currentPath -Directory | Where-Object { $_.Name -ne "Temp_Zip_Extract" }
 if ($folders.Count -gt 0) {
-    Write-Host "`n[알림] 폴더가 감지되어 자동으로 zip 형식으로 압축합니다." -ForegroundColor Cyan
+    Write-Host "`n[알림] 폴더가 감지되어 자동으로 zip 형식으로 압축합니다.(향후 사전 zip 압축바랍니다)" -ForegroundColor Cyan
     foreach ($folder in $folders) {
         $zipPath = Join-Path $currentPath "$($folder.Name).zip"
         Write-Host " >> 압축 중: $($folder.Name) -> $($folder.Name).zip"
