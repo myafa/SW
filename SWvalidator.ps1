@@ -1,6 +1,6 @@
 # =====================================================================
 # SW 반입 전 사전 검증 스크립트 (엑셀 체크리스트 작성 지원용)
-# 기능: 현재 폴더 및 하위 폴더의 모든 파일 해시(SHA-256)와 서명 등 추출
+# 기능: 현재 폴더 및 하위 폴더의 모든 파일 해시(SHA-256)와 서명 추출
 # =====================================================================
 
 # 윈도우 한글 환경(CP949)에서의 터미널 출력 호환성을 위해 기본 인코딩 사용
@@ -11,6 +11,9 @@ $utf8BOM = New-Object System.Text.UTF8Encoding $true
 $currentPath = (Get-Item -Path ".\" -Verbose).FullName
 $reportName  = "SW_Verification_Report_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
 $reportPath  = Join-Path -Path $currentPath -ChildPath $reportName
+
+$csvName     = "SW_Checklist_Template_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
+$csvPath     = Join-Path -Path $currentPath -ChildPath $csvName
 
 # 스크립트 자신 파일명 확인 (검사 제외용)
 $scriptName = $MyInvocation.MyCommand.Name
@@ -23,7 +26,7 @@ Write-Host "==========================================`n"
 # 2. 폴더 감지 시 자동 압축(ZIP)
 $folders = Get-ChildItem -Path $currentPath -Directory | Where-Object { $_.Name -ne "Temp_Zip_Extract" }
 if ($folders.Count -gt 0) {
-    Write-Host "`n[알림] 폴더가 감지되어 자동으로 zip 형식으로 압축합니다.(향후 사전 zip 압축바랍니다)" -ForegroundColor Cyan
+    Write-Host "`n[알림] 폴더가 감지되어 자동으로 zip 형식으로 압축합니다." -ForegroundColor Cyan
     foreach ($folder in $folders) {
         $zipPath = Join-Path $currentPath "$($folder.Name).zip"
         Write-Host " >> 압축 중: $($folder.Name) -> $($folder.Name).zip"
@@ -47,8 +50,11 @@ Write-Host "총 $($files.Count)개의 파일 검사를 시작합니다...`n"
 
 # 3. 엑셀 붙여넣기용 헤더 작성 (Tab 구분자로 엑셀 호환성 극대화)
 $reportContent = @()
-$reportContent += "파일명`t해시값(SHA-256)`t전자서명(Status)`t서명자(Signer)`t제조사`t제품명`t버전"
+$reportContent += "파일명`t제품명`t버전`t제조사`t해시값(SHA-256)`t전자서명(Status)`t서명자(Signer)"
 $reportContent += "-" * 110
+
+$csvContent = @()
+$csvContent += "`"파일명`",`"SW명 (스크립트 결과 있으면 참고하여 작성)`",`"버전`",`"제조사 (스크립트 결과 ADV_INFO 있으면 참고)`",`"라이선스 종류 (무료, 유료, 오픈소스(GPL v2 등 명시)`",`"라이선스 (검색결과 캡처)`",`"다운로드 URL`",`"사용목적`",`"해시값 (SHA-256, 스크립트 결과)`",`"전자서명 (스크립트 결과참고)`",`"VirusTotal 결과 (캡처)`",`"CVE 검색결과 (캡처)`",`"비고 (제한사항 등 있으면 작성)`""
 
 $advancedData = @()
 
@@ -58,18 +64,19 @@ if (-not (Test-Path $tempExtractBase)) { New-Item -ItemType Directory -Path $tem
 
 $processList = @()
 foreach ($f in $files) {
-    $processList += [PSCustomObject]@{ FileInfo = $f; DisplayName = $f.Name; IsArchive = ($f.Extension -match "\.(zip|7z|rar|tar|gz|bz2)$") }
+    $processList += [PSCustomObject]@{ FileInfo = $f; DisplayName = $f.Name; IsArchive = ($f.Extension -match "\.(zip|7z|rar|tar|gz|bz2)$"); SkipCSV = $false }
 
     if ($f.Extension -match "\.zip$") {
         $zipTempDir = Join-Path $tempExtractBase $f.Name
         try {
             Expand-Archive -Path $f.FullName -DestinationPath $zipTempDir -Force -ErrorAction Stop
-            $innerPEs = Get-ChildItem -Path $zipTempDir -Recurse -File | Where-Object { $_.Extension -match "\.(exe|dll|sys|msi)$" }
-            foreach ($innerPE in $innerPEs) {
+            $innerFiles = Get-ChildItem -Path $zipTempDir -Recurse -File
+            foreach ($innerFile in $innerFiles) {
                 # zip 안의 상대경로 추출
-                $relPath = $innerPE.FullName.Substring($zipTempDir.Length + 1)
+                $relPath = $innerFile.FullName.Substring($zipTempDir.Length + 1)
                 $innerDispName = "[ZIP내부] $($f.Name)\$relPath"
-                $processList += [PSCustomObject]@{ FileInfo = $innerPE; DisplayName = $innerDispName; IsArchive = $false }
+                $isPE = ($innerFile.Extension -match "\.(exe|dll|sys|msi)$")
+                $processList += [PSCustomObject]@{ FileInfo = $innerFile; DisplayName = $innerDispName; IsArchive = $false; SkipCSV = (-not $isPE) }
             }
         } catch {
             Write-Host "[$($f.Name)] 내부 추출 중 오류 발생 (암호 등)" -ForegroundColor Yellow
@@ -98,8 +105,10 @@ foreach ($item in $processList) {
     }
 
     # 터미널(콘솔) 화면 출력 확인용
-    Write-Host " [$i/$($processList.Count)] $displayName" -ForegroundColor Cyan
-    Write-Host "   -> SHA-256 : $hash" -ForegroundColor Gray
+    if (-not $item.SkipCSV) {
+        Write-Host " [$i/$($processList.Count)] $displayName" -ForegroundColor Cyan
+        Write-Host "   -> SHA-256 : $hash" -ForegroundColor Gray
+    }
 
     # PE 파일 정보 추출 (버전, 제조사, 제품명)
     try {
@@ -141,10 +150,15 @@ foreach ($item in $processList) {
     }
 
     # 결과 조합 (Tab 구분자) - 화면 및 리포트(엑셀)에 서명 및 S/W 정보 덧붙여 출력
-    $reportContent += "$displayName`t$hash`t$sigStatusMapped`t$signer`t$company`t$product`t$version"
+    $reportContent += "$displayName`t$product`t$version`t$company`t$hash`t$sigStatusMapped`t$signer"
     
-    Write-Host "   -> 전자서명(Status/Signer): $sigStatusMapped / $signer" -ForegroundColor Gray
-    Write-Host "   -> S/W 정보(이름/버전/제조사): $product / $version / $company" -ForegroundColor Gray
+    # CSV 템플릿 데이터 추가 (내부 비실행파일 등은 생략)
+    if (-not $item.SkipCSV) {
+        $csvRow = "`"$displayName`",`"$product`",`"$version`",`"$company`",`"`",`"`",`"`",`"`",`"$hash`",`"$sigStatusMapped / $signer`",`"`",`"`",`"`""
+        $csvContent += $csvRow
+        Write-Host "   -> 전자서명(Status/Signer): $sigStatusMapped / $signer" -ForegroundColor Gray
+        Write-Host "   -> S/W 정보(제품명/버전/제조사): $product / $version / $company" -ForegroundColor Gray
+    }
     
     # 고급 정보 분류 (MD5/SHA1 등 해시 보조 데이터만 하단에 묶음)
     $advLine = "[ADV_INFO] Name: $displayName | MD5: $md5 | SHA1: $sha1"
@@ -184,8 +198,19 @@ $sealText += "========================================================"
 
 [System.IO.File]::AppendAllText($reportPath, $sealText, $utf8BOM)
 
+# 8. CSV 템플릿 파일 생성
+$csvText = $csvContent -join "`r`n"
+[System.IO.File]::WriteAllText($csvPath, $csvText, $utf8BOM)
+
 Write-Host "`n[완료] 검사가 성공적으로 끝났습니다." -ForegroundColor Green
-Write-Host "결과 파일이 같은 폴더에 생성되었습니다: $reportName"
-Write-Host "생성된 txt 파일의 내용을 엑셀 체크리스트에 복사하여 제출해 주세요.`n"
+Write-Host "결과 파일이 생성되었습니다 (보안팀 제출용): $reportName"
+Write-Host "엑셀 입력용 템플릿 파일이 생성되었습니다: $csvName" -ForegroundColor Yellow
+Write-Host "위 파일들을 활용하여 체크리스트 작성을 진행해 주세요.`n"
 
 Read-Host "엔터를 누르면 종료됩니다..."
+
+
+
+
+
+
