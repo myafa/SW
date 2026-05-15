@@ -1,9 +1,7 @@
 # SW 유해성 검증 도구
 본 스크립트는 소프트웨어(SW) 반입 전, 보안 체크리스트(엑셀) 작성을 돕기 위해 파일의 세부 정보(제품명, 버전, 제조사 등)와 해시값, 전자서명 상태를 자동 추출하는 도구입니다.
 
-스크립트 실행 시 함께 생성되는 **작성용 엑셀 템플릿(CSV 파일)** 을 열어서 내용만 복사 후, 
-**아래 링크 양식의 엑셀에 붙여넣어 작성하고 원본 보안 검증 리포트(TXT)와 함께 제출**해주세요. 
-**(반드시 3개 파일 함께 제출)**
+스크립트 실행 시 함께 생성되는 **작성용 엑셀 템플릿(CSV 파일)** 을 열어 복사한 후, **아래 링크 양식의 엑셀에 붙여넣어 작성하고 원본 보안 검증 리포트(TXT)와 함께 제출**해주세요. **(반드시)**
 https://docs.google.com/spreadsheets/d/1liPC7i6VgYWtiANkSjFFBfXtGZZ04baN4-TfnkH2TNU
 
 ## 주요 기능
@@ -12,12 +10,9 @@ https://docs.google.com/spreadsheets/d/1liPC7i6VgYWtiANkSjFFBfXtGZZ04baN4-TfnkH2
 - **전자서명 자동 검증**: 실행 파일(EXE, DLL 등)의 디지털 서명과 서명자 정보를 추출하여 엑셀 양식 항목(`Valid(정상)`, `Invalid(경고)`, `N/A(없음)`)에 맞춰 자동 변환해 줍니다.
 
 ## 사용 방법
-1. 검증하고자 하는 SW 파일들이 있는 폴더(모든 파일을 하나의 폴더로 모으기)로 `SWvalidator.ps1` 파일을 복사합니다.
-2. PowerShell 콘솔에서 스크립트를 실행합니다. 
-   (또는 스크립트 파일 우클릭 후 "PowerShell에서 실행" 선택)
-   ```powershell
-   .\SWvalidator.ps1
-   ```
+1. 검증하고자 하는 SW 파일들이 있는 폴더(모든 파일을 하나의 폴더로 모으기)에 `SWvalidator.ps1`과 **`Run_SWvalidator.bat`** 파일을 함께 복사합니다.
+2. **`Run_SWvalidator.bat` 파일을 더블클릭하여 실행합니다.**
+   - *(GitHub 다운로드 시 발생할 수 있는 한글 깨짐 현상과 보안 실행 차단 문제를 자동으로 해결해 주는 전용 실행 파일입니다.)*
 3. 검사가 완료되면 같은 폴더에 아래의 **두 파일**이 생성됩니다:
    - 엑셀 열람용 초안: `SW_Checklist_Template_YYYYMMDD_HHMMSS.csv`
    - 보안 검증 제출용: `SW_Verification_Report_YYYYMMDD_HHMMSS.txt`
